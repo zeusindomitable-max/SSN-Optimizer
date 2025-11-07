@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ssn-optimizer"
-version = "1.0.0"                 # <--- WAJIB ADA
+version = "1.0.0"
 description = "Spectral-Sketch Natural Optimizer"
 readme = "README.md"
 authors = [{name = "zeusindomitable-max", email = "haryganteng06@gmail.com"}]
-license = {text = "MIT"}
+license = {text = "MIT"}  # SPDX string, no table
 keywords = ["optimizer", "pytorch", "deep-learning", "spectral", "natural-gradient"]
 requires-python = ">=3.8"
 dependencies = [
@@ -39,3 +39,9 @@ bench = [
 Homepage = "https://github.com/zeusindomitable-max/SSN-Optimizer"
 Documentation = "https://github.com/zeusindomitable-max/SSN-Optimizer/tree/main/docs"
 Repository = "https://github.com/zeusindomitable-max/SSN-Optimizer"
+
+# === FIX PACKAGE DISCOVERY: HANYA ssn/ YANG DI-INSTALL ===
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ssn*"]
+exclude = ["paper*", "benchmark*", "examples*", "tests*", "docs*"]
