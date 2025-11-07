@@ -1,7 +1,4 @@
 
----
-
-### `pyproject.toml` — MODERN, PIP-READY
 
 ```toml
 [build-system]
