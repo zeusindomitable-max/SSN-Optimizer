@@ -1,12 +1,12 @@
 # ssn/spectral.py
-def spectral_correction(G, grad, k, gamma, lr):
+import torch
+
+
+def spectral_correction(G, grad, k, gamma, lr, eps=1e-8):
     try:
         U, S, _ = torch.svd_lowrank(G, q=k)
-        diag = S / (S**2 + gamma)
-        m_hat = grad.flatten()
-        correction = lr * (U @ (diag * (U.T @ m_hat))).view_as(grad)
-        return correction
-    except:
+        damping = S / (S**2 + gamma + eps)
+        correction = U @ (damping * (U.T @ grad.flatten()))
+        return lr * correction.view_as(grad)
+    except Exception:
         return torch.zeros_like(grad)
-
-
