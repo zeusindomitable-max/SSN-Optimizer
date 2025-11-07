@@ -1,5 +1,6 @@
-from .optimizer import SSN-Optimzer
-from .utils import benchmark_optimizer
+# ssn/__init__.py
+from .core import SSN
+from .utils import save_convergence_plot
 
 __version__ = "1.0.0"
-__all__ = ["SSNOptimzer", "benchmark_optimizer"]
+__all__ = ["SSN", "save_convergence_plot"]
