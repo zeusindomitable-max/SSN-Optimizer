@@ -1,10 +1,7 @@
 # tests/test_stability.py
-import pytest
 import torch
 import torch.nn as nn
-
 from ssn.core import SSN
-
 
 def test_stress():
     model = nn.Linear(5, 1)
