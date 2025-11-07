@@ -46,12 +46,19 @@ class SSN(Optimizer):
         for group in self.param_groups:
             for p in group["params"]:
                 if p.grad is None:
+                    # === INIT STATE MESKI TIDAK ADA GRAD ===
+                    state = self.state[p]
+                    if len(state) == 0:
+                        state["step"] = 0
+                        state["g"] = torch.zeros_like(p, memory_format=torch.preserve_format)
+                        state["buffer"] = deque(maxlen=group["B"])
+                    state["step"] += 1
                     continue
 
                 grad = p.grad
                 state = self.state[p]
 
-                # === INIT STATE ===
+                # === INIT STATE (jika belum ada) ===
                 if len(state) == 0:
                     state["step"] = 0
                     state["g"] = torch.zeros_like(p, memory_format=torch.preserve_format)
@@ -82,9 +89,6 @@ class SSN(Optimizer):
                 if group["weight_decay"] != 0:
                     update = update.add(p, alpha=-group["lr"] * group["weight_decay"])
 
-                # === FINAL UPDATE (FIX: p.add_(update)) ===
-                p.mul_(-group["lr"])  # lr scaling
-                p.add_(update)       # add trust-region + spectral
-                p.add_(p)            # apply to parameter (p = -lr * (p + update))
-
-        return loss
+                # === FINAL UPDATE: p = -lr * (preconditioned + update) ===
+                update = -group["lr"] * p + update
+                p.add_(update)
