@@ -8,7 +8,14 @@ from .spectral import spectral_correction
 
 
 class SSN(Optimizer):
-    """Spectral-Sketch Natural (SSN) Optimizer."""
+    """
+    Spectral-Sketch Natural (SSN) Optimizer.
+
+    Menggabungkan tiga komponen:
+    1. Fisher preconditioning  -> adaptasi arah gradien.
+    2. Trust-region clipping   -> stabilisasi langkah.
+    3. Spectral correction     -> mitigasi osilasi high-curvature.
+    """
 
     def __init__(
         self,
@@ -38,6 +45,10 @@ class SSN(Optimizer):
 
     @torch.no_grad()
     def step(self, closure=None):
+        """
+        Satu langkah optimisasi.
+        Jika closure diberikan, akan menghitung ulang loss untuk gradient-free step.
+        """
         loss = None
         if closure is not None:
             with torch.enable_grad():
@@ -46,54 +57,49 @@ class SSN(Optimizer):
         for group in self.param_groups:
             lr = group["lr"]
             wd = group["weight_decay"]
+            beta_g = group["beta_g"]
+            lambda_fisher = group["lambda_fisher"]
+            delta = group["delta"]
+            gamma = group["gamma"]
+            k = group["k"]
+            K = group["K"]
+            B = group["B"]
 
             for p in group["params"]:
                 if p.grad is None:
-                    # Init + increment step even without grad
-                    state = self.state[p]
-                    if len(state) == 0:
-                        state["step"] = 0
-                        state["g"] = torch.zeros_like(p)
-                        state["buffer"] = deque(maxlen=group["B"])
-                    state["step"] += 1
                     continue
 
                 grad = p.grad
                 state = self.state[p]
 
-                # Init state
+                # === Inisialisasi state ===
                 if len(state) == 0:
                     state["step"] = 0
                     state["g"] = torch.zeros_like(p)
-                    state["buffer"] = deque(maxlen=group["B"])
+                    state["buffer"] = deque(maxlen=B)
 
                 g = state["g"]
                 step = state["step"] = state["step"] + 1
 
-                # === FISHER PRECONDITIONING ===
-                g.mul_(group["beta_g"]).addcmul_(grad, grad, value=1 - group["beta_g"])
-                p = fisher_preconditioner(g, group["lambda_fisher"])
+                # === 1. Fisher preconditioning ===
+                g.mul_(beta_g).addcmul_(grad, grad, value=1 - beta_g)
+                precond_grad = fisher_preconditioner(g, lambda_fisher)
 
-                # === TRUST REGION UPDATE ===
-                s = p * grad
-                update = trust_region_clip(s, group["delta"], lr)
+                # === 2. Trust-region clipping ===
+                update = trust_region_clip(precond_grad * grad, delta, lr)
 
-                # === SPECTRAL CORRECTION ===
-                if step % group["K"] == 0 and len(state["buffer"]) > 0:
-                    state["buffer"].append(grad.flatten().clone())
-                    if len(state["buffer"]) == group["B"]:
-                        G = torch.stack(list(state["buffer"]), dim=1)
-                        correction = spectral_correction(G, grad, group["k"], group["gamma"], lr)
-                        update = update - correction
+                # === 3. Spectral correction ===
+                state["buffer"].append(grad.flatten().clone())
+                if step % K == 0 and len(state["buffer"]) == B:
+                    G = torch.stack(list(state["buffer"]), dim=1)
+                    correction = spectral_correction(G, grad, k, gamma, lr)
+                    update.sub_(correction)
 
-                # === WEIGHT DECAY ===
-                if wd != 0:
-                    update = update - lr * wd * p
+                # === 4. Weight decay (L2 regularization) ===
+                if wd != 0.0:
+                    update.sub_(lr * wd * p)
 
-                # === FINAL UPDATE: LANGSUNG KE PARAMETER ===
-                p = p * (-lr) + update
-                p.add_(p)  # p = -lr * p + update
-                p.add_(p)  # p = 2 * p → ini yang bikin stuck!
+                # === 5. Final parameter update ===
+                p.data.add_(-lr * update)
 
-                # === FIX: LANGSUNG UPDATE PARAMETER ===
-                p.data.add_( -lr * p + update )  # INI YANG BENAR
+        return loss
