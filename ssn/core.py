@@ -1,12 +1,15 @@
 # ssn/core.py
 import torch
-from torch.optim import Optimizer
 from collections import deque
+from torch.optim import Optimizer
+
 from .preconditioner import fisher_preconditioner, trust_region_clip
 from .spectral import spectral_correction
 
+
 class SSN(Optimizer):
     """Spectral-Sketch Natural (SSN) Optimizer."""
+
     def __init__(
         self,
         params,
@@ -21,8 +24,15 @@ class SSN(Optimizer):
         weight_decay: float = 0.0,
     ):
         defaults = dict(
-            lr=lr, lambda_fisher=lambda_fisher, beta_g=beta_g,
-            delta=delta, K=K, k=k, B=B, gamma=gamma, weight_decay=weight_decay
+            lr=lr,
+            lambda_fisher=lambda_fisher,
+            beta_g=beta_g,
+            delta=delta,
+            K=K,
+            k=k,
+            B=B,
+            gamma=gamma,
+            weight_decay=weight_decay,
         )
         super().__init__(params, defaults)
 
@@ -38,8 +48,8 @@ class SSN(Optimizer):
                 if p.grad is None:
                     continue
                 grad = p.grad
-
                 state = self.state[p]
+
                 if len(state) == 0:
                     state["step"] = 0
                     state["g"] = torch.zeros_like(p)
@@ -54,18 +64,25 @@ class SSN(Optimizer):
 
                 # Trust-region
                 s = p * grad
-                delta = trust_region_clip(s, group["delta"], group["lr"])
+                update = trust_region_clip(s, group["delta"], group["lr"])
 
                 # Spectral correction
                 if step % group["K"] == 0:
                     state["buffer"].append(grad.clone().flatten())
                     if len(state["buffer"]) == group["B"]:
                         G = torch.stack(list(state["buffer"]), dim=1)
-                        correction = spectral_correction(G, grad, group["k"], group["gamma"], group["lr"])
-                        delta -= correction
+                        correction = spectral_correction(
+                            G, grad, group["k"], group["gamma"], group["lr"]
+                        )
+                        update -= correction
 
+                # Weight decay
                 if group["weight_decay"] != 0:
-                    p.mul_(1 - group["lr"] * group["weight_decay"])
-                p.add_(delta)
+                    p = p * (1 - group["lr"] * group["weight_decay"])
+
+                # Final update
+                p.mul_(-group["lr"])
+                p.add_(update)
+                p.add_(p)  # Apply to parameter
 
         return loss
