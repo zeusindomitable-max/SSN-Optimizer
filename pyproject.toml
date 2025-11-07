@@ -1,0 +1,39 @@
+
+---
+
+### `pyproject.toml` — MODERN, PIP-READY
+
+```toml
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ssn-optimizer"
+version = "1.0.0"
+description = "Spectral-Sketch Natural Optimizer"
+readme = "README.md"
+authors = [{name = "[Your Name]", email = "your.email@example.com"}]
+license = {text = "MIT"}
+keywords = ["optimizer", "pytorch", "deep-learning", "spectral", "natural-gradient"]
+dependencies = [
+    "torch>=2.0.1",
+    "numpy>=1.24.0",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+requires-python = ">=3.8"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/SSN-Optimizer"
+Documentation = "https://github.com/yourusername/SSN-Optimizer/tree/main/docs"
+Repository = "https://github.com/yourusername/SSN-Optimizer"
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4.0", "black>=23.0.0", "mypy>=1.5.0"]
+docs = ["sphinx>=7.0.0"]
