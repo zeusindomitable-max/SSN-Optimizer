@@ -1,13 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ssn-optimizer"
+version = "1.0.0"                 # <--- WAJIB ADA
+description = "Spectral-Sketch Natural Optimizer"
+readme = "README.md"
+authors = [{name = "zeusindomitable-max", email = "haryganteng06@gmail.com"}]
+license = {text = "MIT"}
+keywords = ["optimizer", "pytorch", "deep-learning", "spectral", "natural-gradient"]
+requires-python = ">=3.8"
+dependencies = [
+    "torch>=2.0.1",
+    "numpy>=1.24.0",
+    "matplotlib>=3.7.0",
+    "pandas>=2.0.0",
+    "transformers>=4.35.0",
+    "timm>=0.9.0",
+    "datasets>=2.14.0",
+    "scikit-learn>=1.3.0",
+]
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",
+    "pytest-cov>=4.0.0",
     "black>=23.0.0",
     "mypy>=1.5.0",
-    "pytest-cov>=4.0.0",
-    "torch>=2.0.1",
 ]
 bench = [
     "transformers>=4.35.0",
     "timm>=0.9.0",
     "datasets>=2.14.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/zeusindomitable-max/SSN-Optimizer"
+Documentation = "https://github.com/zeusindomitable-max/SSN-Optimizer/tree/main/docs"
+Repository = "https://github.com/zeusindomitable-max/SSN-Optimizer"
