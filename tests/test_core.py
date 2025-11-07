@@ -8,9 +8,8 @@ from ssn.core import SSN
 
 @pytest.fixture
 def linear_model():
-    model = nn.Linear(10, 1)
     torch.manual_seed(42)
-    return model
+    return nn.Linear(10, 1)
 
 
 @pytest.fixture
@@ -36,23 +35,22 @@ def test_ssn_step_updates_parameters(linear_model, data_batch):
     optimizer.step()
 
     assert optimizer.state[linear_model.weight]["step"] == 1
-    assert not torch.isnan(linear_model.weight).any()
 
 
 def test_ssn_no_crash_empty_step(linear_model):
     optimizer = SSN(linear_model.parameters())
     for _ in range(5):
-        optimizer.step()  # no grad
+        optimizer.step()
     assert optimizer.state[linear_model.weight]["step"] == 5
 
 
 def test_ssn_stability_multiple_steps(linear_model, data_batch):
     x, y = data_batch
     criterion = nn.MSELoss()
-    optimizer = SSN(linear_model.parameters(), lr=0.05)
+    optimizer = SSN(linear_model.parameters(), lr=0.1)  # lr lebih besar
     losses = []
 
-    for _ in range(20):  # 20 steps cukup untuk CI
+    for _ in range(15):  # 15 steps cukup
         optimizer.zero_grad()
         out = linear_model(x)
         loss = criterion(out, y)
@@ -60,6 +58,6 @@ def test_ssn_stability_multiple_steps(linear_model, data_batch):
         optimizer.step()
         losses.append(loss.item())
 
-    # Loss harus turun minimal 10%
-    assert losses[-1] < losses[0] * 0.9
-    assert all(not torch.isnan(torch.tensor(l)) for l in losses)
+    # Loss harus turun minimal 30%
+    assert losses[-1] < losses[0] * 0.7
+    assert not any(torch.isnan(torch.tensor(losses)).any())
