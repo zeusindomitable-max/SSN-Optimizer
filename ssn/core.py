@@ -47,26 +47,28 @@ class SSN(Optimizer):
             for p in group["params"]:
                 if p.grad is None:
                     continue
+
                 grad = p.grad
                 state = self.state[p]
 
+                # === INIT STATE ===
                 if len(state) == 0:
                     state["step"] = 0
-                    state["g"] = torch.zeros_like(p)
+                    state["g"] = torch.zeros_like(p, memory_format=torch.preserve_format)
                     state["buffer"] = deque(maxlen=group["B"])
 
                 g = state["g"]
                 step = state["step"] = state["step"] + 1
 
-                # Fisher preconditioning
+                # === Fisher Preconditioning ===
                 g.mul_(group["beta_g"]).addcmul_(grad, grad, value=1 - group["beta_g"])
                 p = fisher_preconditioner(g, group["lambda_fisher"])
 
-                # Trust-region
+                # === Trust-Region Clipping ===
                 s = p * grad
                 update = trust_region_clip(s, group["delta"], group["lr"])
 
-                # Spectral correction
+                # === Spectral Correction (every K steps) ===
                 if step % group["K"] == 0:
                     state["buffer"].append(grad.clone().flatten())
                     if len(state["buffer"]) == group["B"]:
@@ -76,13 +78,13 @@ class SSN(Optimizer):
                         )
                         update -= correction
 
-                # Weight decay
+                # === Weight Decay ===
                 if group["weight_decay"] != 0:
-                    p = p * (1 - group["lr"] * group["weight_decay"])
+                    update = update.add(p, alpha=-group["lr"] * group["weight_decay"])
 
-                # Final update
-                p.mul_(-group["lr"])
-                p.add_(update)
-                p.add_(p)  # Apply to parameter
+                # === FINAL UPDATE (FIX: p.add_(update)) ===
+                p.mul_(-group["lr"])  # lr scaling
+                p.add_(update)       # add trust-region + spectral
+                p.add_(p)            # apply to parameter (p = -lr * (p + update))
 
         return loss
