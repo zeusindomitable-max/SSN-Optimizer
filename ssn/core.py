@@ -44,9 +44,10 @@ class SSN(Optimizer):
                 loss = closure()
 
         for group in self.param_groups:
+            lr = group["lr"]
             for p in group["params"]:
                 if p.grad is None:
-                    # === INIT STATE MESKI TIDAK ADA GRAD ===
+                    # Init state & increment step even without grad
                     state = self.state[p]
                     if len(state) == 0:
                         state["step"] = 0
@@ -58,7 +59,7 @@ class SSN(Optimizer):
                 grad = p.grad
                 state = self.state[p]
 
-                # === INIT STATE (jika belum ada) ===
+                # Init state
                 if len(state) == 0:
                     state["step"] = 0
                     state["g"] = torch.zeros_like(p, memory_format=torch.preserve_format)
@@ -71,24 +72,22 @@ class SSN(Optimizer):
                 g.mul_(group["beta_g"]).addcmul_(grad, grad, value=1 - group["beta_g"])
                 p = fisher_preconditioner(g, group["lambda_fisher"])
 
-                # === Trust-Region Clipping ===
+                # === Trust-Region Update ===
                 s = p * grad
-                update = trust_region_clip(s, group["delta"], group["lr"])
+                update = trust_region_clip(s, group["delta"], lr)
 
-                # === Spectral Correction (every K steps) ===
+                # === Spectral Correction ===
                 if step % group["K"] == 0:
                     state["buffer"].append(grad.clone().flatten())
                     if len(state["buffer"]) == group["B"]:
                         G = torch.stack(list(state["buffer"]), dim=1)
-                        correction = spectral_correction(
-                            G, grad, group["k"], group["gamma"], group["lr"]
-                        )
+                        correction = spectral_correction(G, grad, group["k"], group["gamma"], lr)
                         update -= correction
 
                 # === Weight Decay ===
                 if group["weight_decay"] != 0:
-                    update = update.add(p, alpha=-group["lr"] * group["weight_decay"])
+                    update = update.add(p, alpha=-lr * group["weight_decay"])
 
-                # === FINAL UPDATE: p = -lr * (preconditioned + update) ===
-                update = -group["lr"] * p + update
+                # === FINAL UPDATE: p = -lr * preconditioned + update ===
+                update = -lr * p + update
                 p.add_(update)
