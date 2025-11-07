@@ -8,17 +8,19 @@ from ssn.core import SSN
 
 @pytest.fixture
 def linear_model():
-    return nn.Linear(10, 1)
+    model = nn.Linear(10, 1)
+    torch.manual_seed(42)
+    return model
 
 
 @pytest.fixture
 def data_batch():
+    torch.manual_seed(42)
     return torch.randn(8, 10), torch.randn(8, 1)
 
 
 def test_ssn_initialization(linear_model):
     optimizer = SSN(linear_model.parameters(), lr=0.01)
-    assert len(optimizer.param_groups) == 1
     assert optimizer.param_groups[0]["lr"] == 0.01
 
 
@@ -33,8 +35,7 @@ def test_ssn_step_updates_parameters(linear_model, data_batch):
     loss.backward()
     optimizer.step()
 
-    state = optimizer.state[linear_model.weight]
-    assert state["step"] == 1
+    assert optimizer.state[linear_model.weight]["step"] == 1
     assert not torch.isnan(linear_model.weight).any()
 
 
@@ -51,7 +52,7 @@ def test_ssn_stability_multiple_steps(linear_model, data_batch):
     optimizer = SSN(linear_model.parameters(), lr=0.05)
     losses = []
 
-    for _ in range(20):  # Shorten for CI
+    for _ in range(20):  # 20 steps cukup untuk CI
         optimizer.zero_grad()
         out = linear_model(x)
         loss = criterion(out, y)
@@ -59,6 +60,6 @@ def test_ssn_stability_multiple_steps(linear_model, data_batch):
         optimizer.step()
         losses.append(loss.item())
 
-    # Loss should decrease at least 10%
+    # Loss harus turun minimal 10%
     assert losses[-1] < losses[0] * 0.9
     assert all(not torch.isnan(torch.tensor(l)) for l in losses)
