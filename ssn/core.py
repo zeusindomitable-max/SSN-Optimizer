@@ -1,7 +1,3 @@
-
----
-
-```python
 # ssn/core.py
 import torch
 from torch.optim import Optimizer
@@ -10,21 +6,19 @@ from .preconditioner import fisher_preconditioner, trust_region_clip
 from .spectral import spectral_correction
 
 class SSN(Optimizer):
-    """
-    Spectral-Sketch Natural (SSN) Optimizer.
-    """
+    """Spectral-Sketch Natural (SSN) Optimizer."""
     def __init__(
         self,
         params,
-        lr=1e-3,
-        lambda_fisher=0.7,
-        beta_g=0.99,
-        delta=1.0,
-        K=100,
-        k=32,
-        B=64,
-        gamma=1e-4,
-        weight_decay=0,
+        lr: float = 1e-3,
+        lambda_fisher: float = 0.7,
+        beta_g: float = 0.99,
+        delta: float = 1.0,
+        K: int = 100,
+        k: int = 32,
+        B: int = 64,
+        gamma: float = 1e-4,
+        weight_decay: float = 0.0,
     ):
         defaults = dict(
             lr=lr, lambda_fisher=lambda_fisher, beta_g=beta_g,
