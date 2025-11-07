@@ -45,13 +45,15 @@ class SSN(Optimizer):
 
         for group in self.param_groups:
             lr = group["lr"]
+            wd = group["weight_decay"]
+
             for p in group["params"]:
                 if p.grad is None:
-                    # Init state & increment step even without grad
+                    # Init + increment step even without grad
                     state = self.state[p]
                     if len(state) == 0:
                         state["step"] = 0
-                        state["g"] = torch.zeros_like(p, memory_format=torch.preserve_format)
+                        state["g"] = torch.zeros_like(p)
                         state["buffer"] = deque(maxlen=group["B"])
                     state["step"] += 1
                     continue
@@ -62,32 +64,36 @@ class SSN(Optimizer):
                 # Init state
                 if len(state) == 0:
                     state["step"] = 0
-                    state["g"] = torch.zeros_like(p, memory_format=torch.preserve_format)
+                    state["g"] = torch.zeros_like(p)
                     state["buffer"] = deque(maxlen=group["B"])
 
                 g = state["g"]
                 step = state["step"] = state["step"] + 1
 
-                # === Fisher Preconditioning ===
+                # === FISHER PRECONDITIONING ===
                 g.mul_(group["beta_g"]).addcmul_(grad, grad, value=1 - group["beta_g"])
                 p = fisher_preconditioner(g, group["lambda_fisher"])
 
-                # === Trust-Region Update ===
+                # === TRUST REGION UPDATE ===
                 s = p * grad
                 update = trust_region_clip(s, group["delta"], lr)
 
-                # === Spectral Correction ===
-                if step % group["K"] == 0:
-                    state["buffer"].append(grad.clone().flatten())
+                # === SPECTRAL CORRECTION ===
+                if step % group["K"] == 0 and len(state["buffer"]) > 0:
+                    state["buffer"].append(grad.flatten().clone())
                     if len(state["buffer"]) == group["B"]:
                         G = torch.stack(list(state["buffer"]), dim=1)
                         correction = spectral_correction(G, grad, group["k"], group["gamma"], lr)
-                        update -= correction
+                        update = update - correction
 
-                # === Weight Decay ===
-                if group["weight_decay"] != 0:
-                    update = update.add(p, alpha=-lr * group["weight_decay"])
+                # === WEIGHT DECAY ===
+                if wd != 0:
+                    update = update - lr * wd * p
 
-                # === FINAL UPDATE: p = -lr * preconditioned + update ===
-                update = -lr * p + update
-                p.add_(update)
+                # === FINAL UPDATE: LANGSUNG KE PARAMETER ===
+                p = p * (-lr) + update
+                p.add_(p)  # p = -lr * p + update
+                p.add_(p)  # p = 2 * p → ini yang bikin stuck!
+
+                # === FIX: LANGSUNG UPDATE PARAMETER ===
+                p.data.add_( -lr * p + update )  # INI YANG BENAR
