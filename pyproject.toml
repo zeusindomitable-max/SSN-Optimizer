@@ -1,38 +1,13 @@
-
-### File 3: `pyproject.toml` (Modern build)
-```toml
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "ssn-adam"
-version = "1.0.0"
-description = "Spectral-Sketch Natural Adam: 20-100x faster optimizer"
-readme = "README.md"
-authors = [{name = "[Your Name]", email = "your.email@example.com"}]
-license = {text = "MIT"}
-keywords = ["optimizer", "pytorch", "natural-gradient", "spectral"]
-dependencies = [
-    "torch>=2.0.1",
-    "numpy>=1.24.0",
-]
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-]
-requires-python = ">=3.8"
-
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",
-    "sphinx>=7.0.0",
     "black>=23.0.0",
+    "mypy>=1.5.0",
+    "pytest-cov>=4.0.0",
+    "torch>=2.0.1",
 ]
-
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.black]
-line-length = 88
+bench = [
+    "transformers>=4.35.0",
+    "timm>=0.9.0",
+    "datasets>=2.14.0",
+]
